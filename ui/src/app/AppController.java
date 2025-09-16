@@ -31,6 +31,7 @@ public class AppController {
     }
 
     @FXML
+
     public void initialize() {
         // Inject engine into controllers
         if (programTablePaneController != null) {
@@ -41,6 +42,7 @@ public class AppController {
 
         if (runMenuController != null) {
             runMenuController.setEngine(engine);
+            runMenuController.setHistoryController(historyTablePaneController); // inject history controller
         }
 
         if (headerPaneController != null) {
@@ -57,5 +59,6 @@ public class AppController {
             });
         }
     }
+
 }
 

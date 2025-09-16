@@ -2,13 +2,8 @@
 
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
-<?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx/24.0.1"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="app.AppController"
-            prefWidth="1000.0" prefHeight="700.0">
+<BorderPane prefHeight="700.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="app.AppController">
 
    <!-- Top header -->
    <top>
@@ -19,7 +14,7 @@
    <center>
       <HBox spacing="10.0">
          <children>
-            <fx:include fx:id="programTablePane" source="programTable/ProgramTable.fxml" />
+            <fx:include fx:id="programTablePane" prefWidth="500.0" source="programTable/ProgramTable.fxml" />
             <fx:include fx:id="runMenu" source="runMenu/runMenu.fxml" />
          </children>
       </HBox>
@@ -29,11 +24,10 @@
    <bottom>
       <HBox spacing="10.0">
          <children>
-            <fx:include fx:id="instrHistoryPane" source="instrHistory/InstrHistory.fxml" />
+            <fx:include fx:id="instrHistoryPane" prefWidth="500.0" source="instrHistory/InstrHistory.fxml" />
             <fx:include fx:id="historyTablePane" source="historyTable/historyTable.fxml" />
          </children>
       </HBox>
    </bottom>
 
 </BorderPane>
-

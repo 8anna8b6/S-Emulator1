@@ -1,8 +1,9 @@
 package app.runMenu;
 
 import execute.EngineImpl;
+import execute.components.RunRecord;
 import execute.dto.VariableDTO;
-import javafx.application.Platform;
+import app.historyTable.HistoryTableController;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,7 +11,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 
 import java.util.*;
 
@@ -24,12 +24,18 @@ public class RunMenuController {
     @FXML private TextArea console;
     @FXML private Button runButton;
 
+    // Reference to HistoryTableController
+    private HistoryTableController historyController;
+
     private EngineImpl engine;
 
     private final ObservableList<VariableDTO> inputVars = FXCollections.observableArrayList();
     private final ReadOnlyListWrapper<VariableDTO> actualInputVariables = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
     private final Map<String, Long> editedValues = new HashMap<>();
     private final BooleanProperty running = new SimpleBooleanProperty(false);
+
+    // Track the degree to run
+    private int currentDegree = 0;
 
     @FXML
     public void initialize() {
@@ -85,9 +91,20 @@ public class RunMenuController {
         runButton.setOnAction(event -> runProgram());
     }
 
+    /** Set the engine */
     public void setEngine(EngineImpl engine) {
         this.engine = engine;
         loadInputVariables();
+    }
+
+    /** Set history controller to update history table */
+    public void setHistoryController(HistoryTableController historyController) {
+        this.historyController = historyController;
+    }
+
+    /** Set degree to run */
+    public void setCurrentDegree(int degree) {
+        this.currentDegree = degree;
     }
 
     /** Load input variables from engine */
@@ -111,7 +128,7 @@ public class RunMenuController {
         actualInputVariables.setAll(rebuilt);
     }
 
-    /** Run the program using the edited input values */
+    /** Run the program */
     private void runProgram() {
         if (engine == null || !engine.isLoaded()) {
             console.appendText("No program loaded.\n");
@@ -124,23 +141,35 @@ public class RunMenuController {
         engine.loadInputs(inputsToLoad);
 
         try {
-            int degree = engine.maxDegree();
-            long result = engine.runProgramAndRecord(degree,
+            // Run at the current degree
+            long result = engine.runProgramAndRecord(currentDegree,
                     inputsToLoad.stream().map(VariableDTO::getValue).toList());
 
-            // Get output variable (Y)
-            List<VariableDTO> outputs = new ArrayList<>();
-            if (!engine.getVarByType().isEmpty() && !engine.getVarByType().get(0).isEmpty()) {
-                outputs.add(engine.getVarByType().get(0).get(0));
+            // Collect all output variables
+            List<VariableDTO> allOutputs = new ArrayList<>();
+            List<List<VariableDTO>> varByType = engine.getVarByType();
+            for (List<VariableDTO> vars : varByType) {
+                allOutputs.addAll(vars);
             }
 
             // Display outputs
             resultsList.getItems().clear();
-            for (VariableDTO var : outputs) {
+            for (VariableDTO var : allOutputs) {
                 resultsList.getItems().add(var.getName() + " = " + var.getValue());
             }
 
-            console.appendText("Program ran successfully with degree " + degree + "\n");
+            // Total cycles and degree from last run record
+            List<RunRecord> history = engine.getHistory();
+            if (!history.isEmpty()) {
+                RunRecord lastRun = history.get(history.size() - 1);
+                console.appendText("Program ran successfully with degree " + lastRun.getDegree() + "\n");
+                console.appendText("Total number of cycles: " + lastRun.getCycles() + "\n");
+            }
+
+            // Update history table
+            if (historyController != null) {
+                historyController.showHistory(history);
+            }
 
         } catch (Exception e) {
             console.appendText("Error running program: " + e.getMessage() + "\n");
