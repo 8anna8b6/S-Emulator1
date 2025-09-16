@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="app.historyTable.HistoryTableController">
+
+   <children>
+      <Label alignment="BOTTOM_LEFT" text="History" />
+      <TableView fx:id="historyTable" prefHeight="407.0" prefWidth="507.0">
+         <columns>
+            <TableColumn fx:id="columnNumber" minWidth="20.0" prefWidth="20.0" resizable="false" style="-fx-alignment: CENTER;" />
+            <TableColumn fx:id="columnDegree" maxWidth="87.2" minWidth="20.0" prefWidth="87.2" style="-fx-alignment: CENTER;" text="degree" />
+            <TableColumn fx:id="columnInpust" minWidth="20.0" prefWidth="71.2" style="-fx-alignment: CENTER;" text="inputs" />
+            <TableColumn fx:id="columnCycles" maxWidth="200.0" minWidth="26.4" prefWidth="76.0" resizable="false" style="-fx-alignment: CENTER;" text="cycles" />
+            <TableColumn fx:id="columnOutput" prefWidth="344.0" text="output" />
+         </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+      </TableView>
+   </children>
+</VBox>

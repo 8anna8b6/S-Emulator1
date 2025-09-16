@@ -1,0 +1,109 @@
+/* Root */
+.root {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #f5f5f5;
+
+}
+
+/* Labels */
+.label {
+    -fx-text-fill: #e0e0e0;
+}
+
+/* Buttons */
+.button {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: #f5f5f5;
+
+
+}
+.button:hover {
+    -fx-background-color: #505354;
+}
+.button:pressed {
+    -fx-background-color: #707273;
+}
+
+/* Progress Bar */
+.progress-bar {
+    -fx-accent: #505354;
+}
+
+/* MenuButton itself */
+.menu-button {
+    -fx-background-color: #2b2b2b; /* dark background for the button */
+    -fx-text-fill: #f5f5f5;
+}
+
+/* Dropdown menu background */
+.context-menu {
+    -fx-background-color: #2b2b2b; /* dark background for dropdown */
+    -fx-text-fill: #f5f5f5;
+}
+
+/* Menu items */
+.menu-item {
+    -fx-background-color: #2b2b2b; /* default dark background */
+    -fx-text-fill: #f5f5f5; /* white text */
+}
+
+.menu-item .label {
+    -fx-text-fill: #f5f5f5; /* force label text to be white */
+}
+
+
+
+
+
+/* ===========================
+   TABLEVIEW
+   =========================== */
+.table-view {
+    -fx-background-color: #2b2b2b;
+    -fx-border-color: #2b2b2b;
+    -fx-border-width: 1;
+}
+
+/* Header background */
+.table-view .column-header-background {
+    -fx-background-color: #2b2b2b;
+}
+
+/* Header cells */
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: #2b2b2b;
+    -fx-border-color: #3c3f41;
+    -fx-text-fill: #f5f5f5;
+
+}
+
+/* Table rows */
+.table-view .table-row-cell {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #f0f0f0; /* brighter text */
+}
+.table-view .table-row-cell:odd {
+    -fx-background-color: #333333; /* alternate rows */
+}
+.table-view .table-row-cell:selected {
+    -fx-background-color: #5a5a5a; /* green highlight */
+    -fx-text-fill: #ffffff;
+}
+
+/* Table cell borders (remove white lines) */
+.table-view .table-cell {
+    -fx-border-color: #2b2b2b;
+    -fx-text-fill: #f0f0f0;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-border-color: #2b2b2b;
+}
+
+.table-view:focused {
+    -fx-background-insets: 0;
+    -fx-background-color: #2b2b2b;
+}
+
