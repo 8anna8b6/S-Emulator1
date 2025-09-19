@@ -4,12 +4,12 @@ import execute.EngineImpl;
 import execute.components.RunRecord;
 import execute.dto.VariableDTO;
 import app.historyTable.HistoryTableController;
+import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.VBox;
 
 import java.util.*;
@@ -29,8 +29,11 @@ public class RunMenuController {
 
     private EngineImpl engine;
 
+    // note: keep this list for backward compatibility / bindings,
+    // but we'll also replace the TableView items to force a full refresh.
     private final ObservableList<VariableDTO> inputVars = FXCollections.observableArrayList();
-    private final ReadOnlyListWrapper<VariableDTO> actualInputVariables = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
+    private final ReadOnlyListWrapper<VariableDTO> actualInputVariables =
+            new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
     private final Map<String, Long> editedValues = new HashMap<>();
     private final BooleanProperty running = new SimpleBooleanProperty(false);
 
@@ -39,14 +42,18 @@ public class RunMenuController {
 
     @FXML
     public void initialize() {
+        // wire table to our backing list by default
         inputsTable.setItems(inputVars);
         inputsTable.setEditable(true);
         inputsTable.getColumns().setAll(varColumn, valueColumn);
 
         // Configure columns
-        varColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getName()));
+        varColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(
+                cd.getValue() == null ? "" : cd.getValue().getName()));
         varColumn.setStyle("-fx-alignment: CENTER;");
-        valueColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getValue()));
+
+        valueColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(
+                cd.getValue() == null ? 0L : cd.getValue().getValue()));
 
         // Make value column editable
         valueColumn.setCellFactory(col -> new TableCell<VariableDTO, Long>() {
@@ -107,20 +114,53 @@ public class RunMenuController {
         this.currentDegree = degree;
     }
 
-    /** Load input variables from engine */
+    /**
+     * Load input variables from engine and force a full table rebuild so both
+     * varColumn and valueColumn show exactly the new inputs (no stale cells).
+     */
     public void loadInputVariables() {
-        inputVars.clear();
-        resultsList.getItems().clear();
-        console.clear();
-        if (engine != null && engine.isLoaded()) {
-            inputVars.addAll(engine.getInputs());
-        }
+        // Run on JavaFX thread to avoid race conditions with UI rendering
+        Platform.runLater(() -> {
+            // Clear old state to avoid stale values
+            editedValues.clear();
+            actualInputVariables.clear();
+            resultsList.getItems().clear();
+            console.clear();
+
+            List<VariableDTO> inputs = Collections.emptyList();
+            if (engine != null && engine.isLoaded()) {
+                inputs = engine.getInputs();
+            }
+
+            // DEBUG: print loaded inputs to console so you can verify engine output
+            System.out.println("RunMenuController.loadInputVariables(): engine inputs = " +
+                    (inputs == null ? "null" : inputs.stream().map(VariableDTO::getName).toList()));
+
+            // Create a fresh observable list and set it as the TableView items.
+            // Setting a brand-new list forces JavaFX to rebuild rows and cells.
+            ObservableList<VariableDTO> newItems = FXCollections.observableArrayList(inputs);
+            inputsTable.setItems(newItems);
+
+            // Keep internal inputVars in sync (some other code might use it)
+            inputVars.setAll(newItems);
+
+            // Reset and re-add the columns so cell factories are recreated for each column
+            inputsTable.getColumns().clear();
+            inputsTable.getColumns().addAll(varColumn, valueColumn);
+
+            // clear selection and focus to avoid ghost selection of previous rows
+            inputsTable.getSelectionModel().clearSelection();
+            inputsTable.setPlaceholder(new Label("No input variables"));
+
+            // Force UI refresh
+            inputsTable.refresh();
+        });
     }
 
     /** Rebuild ActualInputVariables from table edits */
     private void rebuildInputsFromTable() {
         List<VariableDTO> rebuilt = new ArrayList<>();
-        for (VariableDTO v : inputVars) {
+        for (VariableDTO v : inputsTable.getItems()) { // use current table items to be safe
             long val = editedValues.getOrDefault(v.getName(), v.getValue());
             rebuilt.add(new VariableDTO(v.getType(), v.getNum(), val));
         }

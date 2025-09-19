@@ -9,9 +9,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.paint.Color;
 import logic.instructions.InstructionType;
 import logic.labels.FixedLabel;
 
@@ -33,36 +33,37 @@ public class ProgramTableController {
     private TableColumn<InstructionDTO, String> colLabel;
     @FXML
     private TableColumn<InstructionDTO, String> colInstruction;
-    private app.historyTable.HistoryTableController historyTableController;
 
-    private EngineImpl engine;
+    private app.historyTable.HistoryTableController historyTableController;
     private app.instrHistory.InstrHistoryController instrHistoryController;
+    private EngineImpl engine;
+
     private final ObservableList<InstructionDTO> instructionList = FXCollections.observableArrayList();
     private final ObservableList<String> variableNames = FXCollections.observableArrayList();
 
     private String highlightedVar = null;
     private int currentDegree = 0;
 
+    private final PseudoClass HIGHLIGHT = PseudoClass.getPseudoClass("highlight");
+
     @FXML
     public void initialize() {
         programTable.setItems(instructionList);
 
-        // Column 1: instruction number
+        // Columns
         colNumber.setCellValueFactory(cellData ->
-                new SimpleIntegerProperty(cellData.getValue().getNum()).asObject()
-        );
+                new SimpleIntegerProperty(cellData.getValue().getNum()).asObject());
 
-        // Column 2: Type S/B
         colType.setCellValueFactory(cellData -> {
             InstructionDTO instr = cellData.getValue();
             if (instr != null && instr.getData() != null && instr.getData().getInstructionType() != null) {
-                String type = instr.getData().getInstructionType() == InstructionType.SYNTHETIC ? "S" : "B";
-                return new SimpleStringProperty(type);
+                return new SimpleStringProperty(
+                        instr.getData().getInstructionType() == InstructionType.SYNTHETIC ? "S" : "B"
+                );
             }
             return new SimpleStringProperty("");
         });
 
-        // Column 3: Cycles
         colCycles.setCellValueFactory(cellData -> {
             InstructionDTO instr = cellData.getValue();
             if (instr != null && instr.getData() != null) {
@@ -71,7 +72,6 @@ public class ProgramTableController {
             return new SimpleIntegerProperty(0).asObject();
         });
 
-        // Column 4: Label
         colLabel.setCellValueFactory(cellData -> {
             InstructionDTO instr = cellData.getValue();
             if (instr != null && instr.getSelfLabel() != null &&
@@ -81,7 +81,6 @@ public class ProgramTableController {
             return new SimpleStringProperty("");
         });
 
-        // Column 5: Instruction representation
         colInstruction.setCellValueFactory(cellData -> {
             InstructionDTO instr = cellData.getValue();
             if (instr != null && instr.getName() != null) {
@@ -90,48 +89,57 @@ public class ProgramTableController {
             return new SimpleStringProperty("");
         });
 
-        // Add row selection listener
+        // Listener for showing history
         programTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            System.out.println("Selection changed - New selection: " + (newSelection != null ? newSelection.getName() : "null"));
-            System.out.println("instrHistoryController: " + instrHistoryController);
-            System.out.println("engine: " + engine);
-
             if (newSelection != null && instrHistoryController != null && engine != null) {
                 try {
-                    // Get the expansion history for the selected instruction
                     List<InstructionDTO> expansionHistory = engine.getExpansionHistory(newSelection);
-                    System.out.println("Expansion history size: " + (expansionHistory != null ? expansionHistory.size() : "null"));
-
-                    if (expansionHistory != null) {
-                        for (int i = 0; i < expansionHistory.size(); i++) {
-                            System.out.println("  [" + i + "] " + expansionHistory.get(i).getName());
-                        }
-                    }
-
                     instrHistoryController.showHistory(expansionHistory);
                 } catch (Exception e) {
-                    System.err.println("Error getting expansion history: " + e.getMessage());
                     e.printStackTrace();
                 }
-            } else {
-                System.out.println("Conditions not met for showing history");
-                if (newSelection == null) System.out.println("  - No selection");
-                if (instrHistoryController == null) System.out.println("  - No history controller");
-                if (engine == null) System.out.println("  - No engine");
+            } else if (instrHistoryController != null) {
+                instrHistoryController.showHistory(new ArrayList<>());
             }
         });
+
+        programTable.setRowFactory(tv -> new TableRow<InstructionDTO>() {
+            @Override
+            protected void updateItem(InstructionDTO item, boolean empty) {
+                super.updateItem(item, empty);
+
+                // Always clear inline styles first → let CSS handle defaults
+                setStyle("");
+
+                if (!empty && item != null) {
+                    boolean match = highlightedVar != null &&
+                            ((item.getName() != null && item.getName().contains(highlightedVar)) ||
+                                    (item.getSelfLabel() != null && item.getSelfLabel().getLabel().contains(highlightedVar)));
+
+                    if (match) {
+                        // Add highlight style class (so CSS handles colors)
+                        getStyleClass().add("highlight-row");
+                    } else {
+                        getStyleClass().remove("highlight-row");
+                    }
+                } else {
+                    getStyleClass().remove("highlight-row");
+                }
+            }
+        });
+
+
     }
 
     public void setEngine(EngineImpl engine) {
         this.engine = engine;
-        System.out.println("Engine set in ProgramTableController: " + engine);
         refreshTable();
     }
 
     public void setHistoryTableController(app.historyTable.HistoryTableController controller) {
         this.historyTableController = controller;
-        System.out.println("HistoryTableController set in ProgramTableController: " + controller);
     }
+
     public void setInstrHistoryController(app.instrHistory.InstrHistoryController controller) {
         this.instrHistoryController = controller;
     }
@@ -139,13 +147,10 @@ public class ProgramTableController {
     public void loadProgram(String filePath) {
         if (engine != null) {
             boolean loaded = engine.loadFromXML(filePath);
-
             Platform.runLater(() -> {
                 if (loaded && engine.isLoaded()) {
-                    currentDegree = 0; // Reset to base program when loading new file
+                    currentDegree = 0;
                     refreshTable();
-
-
                 } else {
                     clearTable();
                 }
@@ -158,6 +163,7 @@ public class ProgramTableController {
             List<InstructionDTO> instructions = engine.getInstructionsOfProgram(currentDegree);
             if (instructions != null && !instructions.isEmpty()) {
                 instructionList.setAll(instructions);
+                variableNames.setAll(getVariableNamesAndLabels());
             } else {
                 clearTable();
             }
@@ -168,33 +174,13 @@ public class ProgramTableController {
 
     public void clearTable() {
         instructionList.clear();
-        // Clear the instruction history when program table is cleared
         if (instrHistoryController != null) {
             instrHistoryController.showHistory(new ArrayList<>());
         }
     }
 
-    public int getInstructionsCount() {
-        return instructionList.size();
-    }
-
-    private void refreshVariables() {
-        if (engine != null && engine.isLoaded()) {
-            // Get X, Y, Z variables
-            var yVar = engine.getVarByType().get(0).get(0);  // output Y
-            var xVars = engine.getVarByType().get(1);        // inputs X
-            var zVars = engine.getVarByType().get(2);        // temporary Z
-
-            // Combine all into a single list
-            variableNames.setAll(
-                    xVars.stream().map(VariableDTO::getName).toList()
-                            .stream().toList() // inputs
-            );
-            variableNames.addAll(zVars.stream().map(VariableDTO::getName).toList()); // temp
-            if (yVar != null) variableNames.add(yVar.getName());                     // output
-        } else {
-            variableNames.clear();
-        }
+    public int getMaxDegree() {
+        return engine != null ? engine.maxDegree() : 0;
     }
 
     public ObservableList<String> getVariableNames() {
@@ -203,87 +189,20 @@ public class ProgramTableController {
 
     public void highlightVariable(String variableOrLabel) {
         this.highlightedVar = variableOrLabel;
-        programTable.refresh();
-    }
-
-    @FXML
-    public void runProgramAction() {
-        if (engine == null || !engine.isLoaded()) {
-            Alert alert = new Alert(Alert.AlertType.WARNING, "No program loaded!");
-            alert.showAndWait();
-            return;
-        }
-
-        List<VariableDTO> inputVars = engine.getInputs();
-        List<VariableDTO> updatedInputs = new ArrayList<>();
-        List<Long> values = new ArrayList<>();
-
-        for (VariableDTO var : inputVars) {
-            TextInputDialog dialog = new TextInputDialog("0");
-            dialog.setTitle("Run Program");
-            dialog.setHeaderText("Enter Input Values");
-            dialog.setContentText("Enter value for " + var.getName() + ":");
-
-            Optional<String> result = dialog.showAndWait();
-            long value = 0;
-            if (result.isPresent()) {
-                try {
-                    value = Long.parseLong(result.get());
-                } catch (NumberFormatException ignored) {
-                    value = 0; // fallback to 0
-                }
-            }
-
-            updatedInputs.add(new VariableDTO(var.getType(), var.getNum(), value));
-            values.add(value);
-        }
-
-        engine.loadInputs(updatedInputs);
-        long output = engine.runProgramAndRecord(currentDegree, values);
-
-        // Update the history table with the latest run records
-        if (historyTableController != null && engine != null) {
-            historyTableController.showHistory(engine.getHistory());
-        }
-
-        Alert alert = new Alert(Alert.AlertType.INFORMATION,
-                "Program executed successfully!\nOutput (y) = " + output);
-        alert.setHeaderText("Run Complete");
-        alert.showAndWait();
-    }
-    public void expandProgram(int degree) {
-        this.currentDegree = degree;
-        refreshTable();
-    }
-
-    public int getMaxDegree() {
-        return engine != null ? engine.maxDegree() : 0;
-    }
-
-    private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        Platform.runLater(() -> programTable.refresh());
     }
 
     public List<String> getVariableNamesAndLabels() {
         if (engine == null || !engine.isLoaded()) return List.of();
 
-        // X, Z, Y variables
         var vars = engine.getVarByType();
-        List<String> names = FXCollections.observableArrayList();
+        List<String> names = new ArrayList<>();
         if (!vars.isEmpty()) {
-            // output Y
-            if (!vars.get(0).isEmpty()) names.add(vars.get(0).get(0).getName());
-            // inputs X
-            names.addAll(vars.get(1).stream().map(VariableDTO::getName).toList());
-            // temp Z
-            names.addAll(vars.get(2).stream().map(VariableDTO::getName).toList());
+            if (!vars.get(0).isEmpty()) names.add(vars.get(0).get(0).getName()); // Y
+            names.addAll(vars.get(1).stream().map(VariableDTO::getName).toList()); // X
+            names.addAll(vars.get(2).stream().map(VariableDTO::getName).toList()); // Z
         }
 
-        // labels L
         List<String> labels = instructionList.stream()
                 .map(InstructionDTO::getSelfLabel)
                 .filter(l -> l != null && !l.getLabel().isEmpty())
@@ -291,7 +210,11 @@ public class ProgramTableController {
                 .toList();
 
         names.addAll(labels);
-
         return names;
+    }
+
+    public void expandProgram(int degree) {
+        this.currentDegree = degree;
+        refreshTable();
     }
 }

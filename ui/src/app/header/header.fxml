@@ -14,16 +14,15 @@
         <Button layoutX="14.0" layoutY="10.0" mnemonicParsing="false" onAction="#loadFileButtonAction" text="load file" />
         <Label layoutX="85.0" layoutY="14.0" text="File:" />
         <Label fx:id="filePathLabel" layoutX="112.0" layoutY="16.0" prefHeight="18.0" prefWidth="130.0" />
-        <ProgressBar fx:id="progressBar" layoutX="204.0" layoutY="16.0" prefHeight="18.0" prefWidth="98.0" progress="0.0" />
-        <MenuButton fx:id="themeMenuButton" layoutX="313.0" layoutY="10.0" mnemonicParsing="false" text="settings">
+        <ProgressBar fx:id="progressBar" layoutX="251.0" layoutY="16.0" prefHeight="18.0" prefWidth="98.0" progress="0.0" />
+        <MenuButton fx:id="themeMenuButton" layoutX="361.0" layoutY="12.0" mnemonicParsing="false" text="settings">
             <items>
                 <MenuItem fx:id="lightModeItem" mnemonicParsing="false" onAction="#setLightMode" text="Light Mode" />
                 <MenuItem fx:id="darkModeItem" mnemonicParsing="false" onAction="#setDarkMode" text="Dark Mode" />
             </items>
         </MenuButton>
-        <Button fx:id="runProgramAction" layoutX="401.0" layoutY="12.0" mnemonicParsing="false" onAction="#runProgramAction" text="run" />
         <Button layoutX="445.0" layoutY="12.0" mnemonicParsing="false" onAction="#expandProgramAction" text="Expand" />
-        <ComboBox fx:id="highlightComboBox" layoutX="515.0" layoutY="12.0" prefWidth="150.0" />
+        <ComboBox fx:id="highlightComboBox" layoutX="515.0" layoutY="12.0" prefWidth="150.0" promptText="highlight" />
     </children>
     <padding>
         <Insets left="20.0" />

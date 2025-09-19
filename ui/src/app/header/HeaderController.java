@@ -1,6 +1,11 @@
 package app.header;
 
 import app.programTable.ProgramTableController;
+import execute.EngineImpl;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -14,43 +19,29 @@ public class HeaderController {
 
     @FXML private Label filePathLabel;
     @FXML private ProgressBar progressBar;
+    @FXML private MenuButton themeMenuButton;
+    @FXML private ComboBox<String> highlightComboBox;
 
-
-    private Stage primaryStage; //reference to the main application window
     private Consumer<String> onFileLoaded;
     private ProgramTableController programTabController;
 
-    private boolean darkMode = false;
-
-    public void setPrimaryStage(Stage stage) {
-        this.primaryStage = stage;
-    }
-
-    public void setOnFileLoaded(Consumer<String> callback) {
-        this.onFileLoaded = callback;
-    }
-
-    public void setProgramTabController(ProgramTableController controller) {
-        this.programTabController = controller;
-    }
-
-
-
+    // Light mode
     @FXML
     private void setLightMode() {
-        if (primaryStage == null) return;
-        primaryStage.getScene().getStylesheets().clear();
-        primaryStage.getScene().getStylesheets().add(
-                getClass().getResource("../resources/styles/light.css").toExternalForm()
+        Stage stage = (Stage) themeMenuButton.getScene().getWindow();
+        stage.getScene().getStylesheets().clear();
+        stage.getScene().getStylesheets().add(
+                getClass().getResource("/app/resources/styles/light.css").toExternalForm()
         );
     }
 
+    // Dark mode
     @FXML
     private void setDarkMode() {
-        if (primaryStage == null) return;
-        primaryStage.getScene().getStylesheets().clear();
-        primaryStage.getScene().getStylesheets().add(
-                getClass().getResource("../resources/styles/dark.css").toExternalForm()
+        Stage stage = (Stage) themeMenuButton.getScene().getWindow();
+        stage.getScene().getStylesheets().clear();
+        stage.getScene().getStylesheets().add(
+                getClass().getResource("/app/resources/styles/dark.css").toExternalForm()
         );
     }
 
@@ -62,7 +53,7 @@ public class HeaderController {
                 new FileChooser.ExtensionFilter("XML Files", "*.xml")
         );
 
-        File selectedFile = fileChooser.showOpenDialog(primaryStage);
+        File selectedFile = fileChooser.showOpenDialog(themeMenuButton.getScene().getWindow());
 
         if (selectedFile != null) {
             simulateFileLoading(selectedFile);
@@ -71,17 +62,20 @@ public class HeaderController {
         }
     }
 
-
     private void simulateFileLoading(File file) {
-        Task<Void> loadTask = new Task<>() {
+        Task<Boolean> loadTask = new Task<>() {
             @Override
-            protected Void call() throws Exception {
+            protected Boolean call() {
                 int steps = 50;
                 for (int i = 1; i <= steps; i++) {
-                    Thread.sleep(30);
+                    try {
+                        Thread.sleep(30);
+                    } catch (InterruptedException ignored) {}
                     updateProgress(i, steps);
                 }
-                return null;
+
+                EngineImpl engine = new EngineImpl(); // Or use shared instance
+                return engine.loadFromXML(file.getAbsolutePath());
             }
         };
 
@@ -90,11 +84,32 @@ public class HeaderController {
         loadTask.setOnSucceeded(e -> {
             progressBar.progressProperty().unbind();
             progressBar.setProgress(0);
-            filePathLabel.setText(file.getAbsolutePath());
 
-            if (onFileLoaded != null) {
-                onFileLoaded.accept(file.getAbsolutePath());
+            boolean success = loadTask.getValue();
+            if (success) {
+                filePathLabel.setText(file.getAbsolutePath());
+                if (onFileLoaded != null) {
+                    onFileLoaded.accept(file.getAbsolutePath());
+                }
+            } else {
+                showAlert(Alert.AlertType.ERROR,
+                        "File Load Error",
+                        "The selected file could not be loaded.\n" +
+                                "Please check that it is a valid XML program file.");
+                filePathLabel.setText("Error: failed to load file");
             }
+        });
+
+        loadTask.setOnFailed(e -> {
+            progressBar.progressProperty().unbind();
+            progressBar.setProgress(0);
+
+            Throwable ex = loadTask.getException();
+            showAlert(Alert.AlertType.ERROR,
+                    "Unexpected Error",
+                    "An unexpected error occurred while loading the file:\n" +
+                            (ex != null ? ex.getMessage() : "Unknown error"));
+            filePathLabel.setText("Error: failed to load file");
         });
 
         Thread thread = new Thread(loadTask);
@@ -103,18 +118,11 @@ public class HeaderController {
     }
 
 
-    @FXML
-    private void runProgramAction() {
-        if (programTabController != null) {
-            programTabController.runProgramAction();
-        }
-    }
 
     @FXML
     private void expandProgramAction() {
         if (programTabController == null) return;
 
-        // Ask for degree
         int maxDegree = programTabController.getMaxDegree();
 
         TextInputDialog dialog = new TextInputDialog("0");
@@ -132,7 +140,6 @@ public class HeaderController {
                     return;
                 }
 
-                // Call expandProgram on controller
                 programTabController.expandProgram(degree);
 
             } catch (NumberFormatException e) {
@@ -150,4 +157,55 @@ public class HeaderController {
         alert.showAndWait();
     }
 
+    public void setOnFileLoaded(Consumer<String> callback) {
+        this.onFileLoaded = callback;
+    }
+
+    public void setProgramTabController(ProgramTableController controller) {
+        this.programTabController = controller;
+
+        if (programTabController == null || highlightComboBox == null) return;
+
+        // backing observable list from ProgramTableController (this is updated there)
+        ObservableList<String> backing = programTabController.getVariableNames();
+
+        // comboItems = one empty option + backing content (kept in sync below)
+        ObservableList<String> comboItems = FXCollections.observableArrayList();
+        comboItems.add("");               // empty first entry = "no highlight"
+        comboItems.addAll(backing);       // initial snapshot
+
+        // use comboItems as the ComboBox items
+        highlightComboBox.setItems(comboItems);
+
+        // show empty as default (no highlight)
+        highlightComboBox.getSelectionModel().selectFirst();
+
+        // Keep comboItems in sync whenever backing changes
+        backing.addListener((ListChangeListener<String>) change -> {
+            Platform.runLater(() -> {
+                String currentSelection = highlightComboBox.getValue();
+
+                comboItems.clear();
+                comboItems.add("");
+                comboItems.addAll(backing);
+
+                // restore previous selection if still present, otherwise select empty
+                if (currentSelection != null && comboItems.contains(currentSelection)) {
+                    highlightComboBox.getSelectionModel().select(currentSelection);
+                } else {
+                    highlightComboBox.getSelectionModel().selectFirst();
+                }
+            });
+        });
+
+        // Handle user selection: empty = clear highlight
+        highlightComboBox.setOnAction(e -> {
+            String selected = highlightComboBox.getValue();
+            if (selected != null && !selected.isEmpty()) {
+                programTabController.highlightVariable(selected);
+            } else {
+                programTabController.highlightVariable(null);
+            }
+        });
+    }
 }

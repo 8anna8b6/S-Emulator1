@@ -50,16 +50,16 @@ public class EngineImpl implements Engine {
 
     @Override
     public List<List<VariableDTO>> getVarByType() {
-
-        List<VariableDTO> xList = inputVarsMap.values() // snapshot
+        List<VariableDTO> xList = inputVarsMap.values()
                 .stream()
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Variable::getName))
                 .map(VariableDTO::new)
                 .toList();
 
-
-        List<VariableDTO> yList = List.of(new VariableDTO(outputVar));
+        List<VariableDTO> yList = (outputVar != null)
+                ? List.of(new VariableDTO(outputVar))
+                : List.of();
 
         List<VariableDTO> zList = tempVarsMap.values()
                 .stream()
@@ -83,30 +83,36 @@ public class EngineImpl implements Engine {
 
     @Override
     public boolean loadFromXML(String filePath) {
-        Map<String, Variable> vars = new HashMap<>();
-        Program program = XmlLoader.parse(filePath, vars);
-        if (program != null) {
-            this.fillOutVars(vars);
-            pm.loadNewProgram(program);
-            this.history.clear();
-            System.out.println("Program '" + program.getName() + "' loaded successfully!");
-            return true;
-        } else {
-            System.out.println("Program not loaded. Keeping previous program.");
+        try {
+            Map<String, Variable> vars = new HashMap<>();
+            Program program = XmlLoader.parse(filePath, vars);
+            if (program != null) {
+                this.fillOutVars(vars);
+                pm.loadNewProgram(program);
+                this.history.clear();
+                System.out.println("Program '" + program.getName() + "' loaded successfully!");
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            System.err.println("Error loading program: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
 
     @Override
     public void fillOutVars(Map<String, Variable> vars) {
+        this.inputVarsMap.clear();
+        this.tempVarsMap.clear();
+        this.outputVar = null;
+
         for (Variable variable : vars.values()) {
             if (variable.getType() == VariableType.INPUT) {
                 this.inputVarsMap.put(variable.getName(), variable);
-            }
-            else if (variable.getType() == VariableType.OUTPUT) {
+            } else if (variable.getType() == VariableType.OUTPUT) {
                 this.outputVar = variable;
-            }
-            else if (variable.getType() == VariableType.TEMP) {
+            } else if (variable.getType() == VariableType.TEMP) {
                 this.tempVarsMap.put(variable.getName(), variable);
             }
         }
@@ -117,8 +123,7 @@ public class EngineImpl implements Engine {
         for (VariableDTO variableDTO : inputVarsDTO) {
             if (inputVarsMap.containsKey(variableDTO.getName())) {
                 inputVarsMap.get(variableDTO.getName()).setValue(variableDTO.getValue());
-            }
-            else {
+            } else {
                 inputVarsMap.put(variableDTO.getName(), new Var(variableDTO));
             }
         }
@@ -146,13 +151,12 @@ public class EngineImpl implements Engine {
 
     @Override
     public long runProgram(int degree) {
-        outputVar.setValue(0);
-        tempVarsMap.values()
-                .stream()
-                .filter(Objects::nonNull)
-                .forEach(v -> v.setValue(0));
+        if (outputVar != null) {
+            outputVar.setValue(0);
+        }
+        tempVarsMap.values().forEach(v -> v.setValue(0));
         pm.runProgram(degree);
-        return outputVar.getValue();
+        return (outputVar != null) ? outputVar.getValue() : 0;
     }
 
     @Override
@@ -165,6 +169,7 @@ public class EngineImpl implements Engine {
 
         return result;
     }
+
     public List<InstructionDTO> getInstructionsOfProgram(int degree) {
         if (!isLoaded()) return List.of();
         return pm.getProgram(degree).getInstructions().stream()
@@ -182,11 +187,7 @@ public class EngineImpl implements Engine {
         return history;
     }
 
-
     public List<RunRecord> getHistory() {
-        return new ArrayList<>(history); // return a copy for safety
+        return new ArrayList<>(history);
     }
-
-
-
 }

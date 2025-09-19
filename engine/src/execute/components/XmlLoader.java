@@ -18,102 +18,96 @@ import java.util.*;
 
 public class XmlLoader {
 
-    public static Program parse(String filePath, Map<String, Variable> varsMap) {
+    public static Program parse(String filePath, Map<String, Variable> varsMap) throws Exception {
         File file = new File(filePath);
         if (!file.exists()) {
-            System.out.println("Error: File does not exist.");
-            return null;
+            throw new IllegalArgumentException("File does not exist: " + filePath);
         }
         if (!filePath.toLowerCase().endsWith(".xml")) {
-            System.out.println("Error: File is not an XML file.");
-            return null;
+            throw new IllegalArgumentException("File is not an XML file: " + filePath);
         }
 
-        try {
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(file);
-            doc.getDocumentElement().normalize();
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        Document doc = dBuilder.parse(file);
+        doc.getDocumentElement().normalize();
 
-            List<Instruction> instructions = new ArrayList<>();
-            Map<Label, Instruction> labels = new HashMap<>();
+        List<Instruction> instructions = new ArrayList<>();
+        Map<Label, Instruction> labels = new HashMap<>();
 
-            String programName = doc.getDocumentElement().getAttribute("name");
+        String programName = doc.getDocumentElement().getAttribute("name");
 
-            NodeList instrNodes = doc.getElementsByTagName("S-Instruction");
+        NodeList instrNodes = doc.getElementsByTagName("S-Instruction");
 
-            System.out.println("Found " + instrNodes.getLength() + " instructions in XML");
+        for (int i = 0; i < instrNodes.getLength(); i++) {
+            Element instrElem = (Element) instrNodes.item(i);
 
-            for (int i = 0; i < instrNodes.getLength(); i++) {
-                Element instrElem = (Element) instrNodes.item(i);
+            String instrName = instrElem.getAttribute("name");
+            String type = instrElem.getAttribute("type");
 
-                String instrName = instrElem.getAttribute("name");
-                String type = instrElem.getAttribute("type");
-
-                // variable (main one if exists)
-                String varName = "";
-                Variable var = null;
-                NodeList varNodes = instrElem.getElementsByTagName("S-Variable");
-                if (varNodes.getLength() > 0) {
-                    varName = varNodes.item(0).getTextContent().trim();
-                    if (!varsMap.containsKey(varName)) {
-                        varsMap.put(varName, new Var(varName));
-                    }
-                    var = varsMap.get(varName);
+            // variable
+            Variable var = null;
+            NodeList varNodes = instrElem.getElementsByTagName("S-Variable");
+            if (varNodes.getLength() > 0) {
+                String varName = varNodes.item(0).getTextContent().trim();
+                if (!varsMap.containsKey(varName)) {
+                    varsMap.put(varName, new Var(varName));
                 }
+                var = varsMap.get(varName);
+            }
 
-                // label of the instruction
-                Label selfLabel = FixedLabel.EMPTY;
-                NodeList labelNodes = instrElem.getElementsByTagName("S-Label");
-                if (labelNodes.getLength() > 0) {
-                    String labelName = labelNodes.item(0).getTextContent().trim();
-                    selfLabel = parseLabel(labelName);
-                }
+            // label
+            Label selfLabel = FixedLabel.EMPTY;
+            NodeList labelNodes = instrElem.getElementsByTagName("S-Label");
+            if (labelNodes.getLength() > 0) {
+                String labelName = labelNodes.item(0).getTextContent().trim();
+                selfLabel = parseLabel(labelName);
+            }
 
-                // collect all arguments into a map
-                Map<String, String> args = new HashMap<>();
-                NodeList argParents = instrElem.getElementsByTagName("S-Instruction-Arguments");
-                if (argParents.getLength() > 0) {
-                    Element argsElem = (Element) argParents.item(0);
-                    NodeList argNodes = argsElem.getElementsByTagName("S-Instruction-Argument");
-                    for (int j = 0; j < argNodes.getLength(); j++) {
-                        Element argElem = (Element) argNodes.item(j);
-                        String argName = argElem.getAttribute("name");
-                        String argValue = argElem.getAttribute("value");
-                        args.put(argName, argValue);
-                    }
-                }
-
-                // some instructions have a target label directly
-                Label targetLabel = FixedLabel.EMPTY;
-                if (args.containsKey("JNZLabel")) {
-                    targetLabel = parseLabel(args.get("JNZLabel"));
-                }
-
-                Instruction instr = createInstruction(instrName, var, selfLabel, targetLabel, args, varsMap);
-                if (instr != null) {
-                    instructions.add(instr);
-                    if (selfLabel != FixedLabel.EMPTY) {
-                        labels.put(selfLabel, instr);
-                    }
-                } else {
-                    System.out.println("Unknown instruction name: " + instrName + " (type=" + type + ")");
+            // args
+            Map<String, String> args = new HashMap<>();
+            NodeList argParents = instrElem.getElementsByTagName("S-Instruction-Arguments");
+            if (argParents.getLength() > 0) {
+                Element argsElem = (Element) argParents.item(0);
+                NodeList argNodes = argsElem.getElementsByTagName("S-Instruction-Argument");
+                for (int j = 0; j < argNodes.getLength(); j++) {
+                    Element argElem = (Element) argNodes.item(j);
+                    String argName = argElem.getAttribute("name");
+                    String argValue = argElem.getAttribute("value");
+                    args.put(argName, argValue);
                 }
             }
 
-            Program program = new SProgram(programName, labels, instructions);
-
-            if (!program.checkLabels()) {
-                System.out.println("Error: Program has invalid labels.");
-                return null;
+            // direct target label
+            Label targetLabel = FixedLabel.EMPTY;
+            if (args.containsKey("JNZLabel")) {
+                targetLabel = parseLabel(args.get("JNZLabel"));
             }
-            else return program;
 
-        } catch (Exception e) {
-            System.out.println("Error parsing XML: " + e.getMessage());
-            e.printStackTrace();
-            return null;
+            Instruction instr = createInstruction(instrName, var, selfLabel, targetLabel, args, varsMap);
+            if (instr != null) {
+                instructions.add(instr);
+                if (selfLabel != FixedLabel.EMPTY) {
+                    labels.put(selfLabel, instr);
+                }
+            } else {
+                throw new IllegalArgumentException(
+                        "Unknown instruction name: " + instrName + " (type=" + type + ")");
+            }
         }
+
+        Program program = new SProgram(programName, labels, instructions);
+
+        // register in repository so other QUOTE can find it
+        execute.components.ProgramRepository.register(program);
+
+        if (!program.checkLabels()) {
+            throw new IllegalStateException("Program has invalid labels.");
+        }
+        return program;
+
+
+
     }
 
     private static Instruction createInstruction(String name,
@@ -127,8 +121,6 @@ public class XmlLoader {
             case "DECREASE" -> new Decrease(selfLabel, var);
             case "JUMP_NOT_ZERO", "JNZ" -> new JumpNotZero(selfLabel, var, target);
             case "NEUTRAL", "NO_OP" -> new Neutral(selfLabel, var);
-
-            // ---- Synthetic ----
             case "ZERO_VARIABLE" -> new ZeroVariable(selfLabel, var);
 
             case "GOTO_LABEL" -> {
@@ -138,9 +130,8 @@ public class XmlLoader {
             }
 
             case "ASSIGNMENT" -> {
-                // main variable from <S-Variable> is target (y)
                 String assignedVarName = args.get("assignedVariable");
-                Variable targetVar = var; // <S-Variable> → y
+                Variable targetVar = var;
                 Variable sourceVar = vars.computeIfAbsent(assignedVarName, Var::new);
                 yield new Assignment(selfLabel, targetVar, sourceVar);
             }
@@ -170,11 +161,25 @@ public class XmlLoader {
                 Label tgt = parseLabel(lbl);
                 yield new JumpEqualVariable(selfLabel, var, otherVar, tgt);
             }
+            case "QUOTE" -> {
+                String functionName = args.get("functionName");
+                String functionArguments = args.get("functionArguments");
+                yield new logic.instructions.api.synthetic.Quote(selfLabel, var, functionName, functionArguments);
+            }
+            case "JUMP_EQUAL_FUNCTION" -> {
+                String functionName = args.get("functionName");
+                String functionArguments = args.get("functionArguments");
+                String lbl = args.get("JEFunctionLabel");
+                Label jumpLabel = parseLabel(lbl);
+                Variable tempVar = vars.computeIfAbsent("z1", Var::new); // משתנה עבודה z1
+                yield new JumpEqualFunction(selfLabel, var, tempVar, functionName, functionArguments, jumpLabel);
+            }
+
+
 
             default -> null;
         };
     }
-
 
     private static Label parseLabel(String labelValue) {
         if (labelValue == null || labelValue.isEmpty()) return FixedLabel.EMPTY;
