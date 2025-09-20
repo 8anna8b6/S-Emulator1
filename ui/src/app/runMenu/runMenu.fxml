@@ -62,7 +62,7 @@
                 </HBox>
             </top>
             <center>
-                <TextArea fx:id="console" editable="false" focusTraversable="false" maxHeight="Infinity" maxWidth="1.7976931348623157E308" prefHeight="200.0" prefRowCount="8" prefWidth="400.0" styleClass="console" wrapText="false" BorderPane.alignment="CENTER">
+                <TextArea fx:id="console" editable="false" focusTraversable="false" maxHeight="Infinity" maxWidth="1.7976931348623157E308" prefHeight="109.0" prefRowCount="8" prefWidth="559.0" styleClass="console" wrapText="false" BorderPane.alignment="CENTER">
                     <BorderPane.margin>
                         <Insets />
                     </BorderPane.margin>
@@ -71,7 +71,27 @@
         </BorderPane>
     </center>
    <top>
-       <Button fx:id="runButton" mnemonicParsing="false" text="Run" BorderPane.alignment="CENTER" />
-
+      <HBox prefHeight="47.0" prefWidth="400.0" BorderPane.alignment="CENTER">
+         <children>
+             <Button fx:id="runButton" mnemonicParsing="false" text="Run">
+               <HBox.margin>
+                  <Insets />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="debugButton" mnemonicParsing="false" text="debug">
+               <HBox.margin>
+                  <Insets />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="newRunButton" mnemonicParsing="false" text="set new run">
+               <HBox.margin>
+                  <Insets />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="stepOverButton" mnemonicParsing="false" text="stepOver" />
+            <Button fx:id="resumeButton" mnemonicParsing="false" text="resume" />
+            <Button fx:id="stopButton" mnemonicParsing="false" text="stop" />
+         </children>
+      </HBox>
    </top>
 </BorderPane>

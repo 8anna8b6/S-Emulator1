@@ -69,10 +69,11 @@ public class AppController {
         if (runMenuController != null) {
             runMenuController.setEngine(engine);
             runMenuController.setHistoryController(historyTablePaneController);
+
+            runMenuController.setProgramTableController(programTablePaneController);
         }
 
         if (headerPaneController != null) {
-            //headerPaneController.setPrimaryStage(primaryStage);
             headerPaneController.setProgramTabController(programTablePaneController);
 
             headerPaneController.setOnFileLoaded(filePath -> {
@@ -83,6 +84,16 @@ public class AppController {
                     runMenuController.loadInputVariables();
                 }
             });
+        }
+    }
+
+    // Method to handle degree changes (if you have degree selection functionality)
+    public void handleDegreeChange(int newDegree) {
+        if (runMenuController != null) {
+            runMenuController.setCurrentDegree(newDegree);
+        }
+        if (programTablePaneController != null) {
+            programTablePaneController.expandProgram(newDegree);
         }
     }
 }

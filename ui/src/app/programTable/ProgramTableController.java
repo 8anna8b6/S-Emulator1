@@ -50,6 +50,8 @@ public class ProgramTableController {
     public void initialize() {
         programTable.setItems(instructionList);
 
+        setupTableRowFactory();
+
         // Columns
         colNumber.setCellValueFactory(cellData ->
                 new SimpleIntegerProperty(cellData.getValue().getNum()).asObject());
@@ -103,27 +105,36 @@ public class ProgramTableController {
             }
         });
 
+        // Set up row factory for debug highlighting
         programTable.setRowFactory(tv -> new TableRow<InstructionDTO>() {
             @Override
             protected void updateItem(InstructionDTO item, boolean empty) {
                 super.updateItem(item, empty);
 
-                // Always clear inline styles first → let CSS handle defaults
-                setStyle("");
+                // Clear all custom style classes first
+                getStyleClass().removeAll("highlight-row", "debug-current-line", "normal-row");
 
                 if (!empty && item != null) {
-                    boolean match = highlightedVar != null &&
-                            ((item.getName() != null && item.getName().contains(highlightedVar)) ||
-                                    (item.getSelfLabel() != null && item.getSelfLabel().getLabel().contains(highlightedVar)));
+                    int rowIndex = getIndex();
 
-                    if (match) {
-                        // Add highlight style class (so CSS handles colors)
-                        getStyleClass().add("highlight-row");
-                    } else {
-                        getStyleClass().remove("highlight-row");
+                    // Check if this is the current debug line (highest priority)
+                    if (debugCurrentLine >= 0 && rowIndex == debugCurrentLine) {
+                        getStyleClass().add("debug-current-line");
+                    }
+                    // Check for variable highlighting (lower priority)
+                    else {
+                        boolean match = highlightedVar != null &&
+                                ((item.getName() != null && item.getName().contains(highlightedVar)) ||
+                                        (item.getSelfLabel() != null && item.getSelfLabel().getLabel().contains(highlightedVar)));
+
+                        if (match) {
+                            getStyleClass().add("highlight-row");
+                        } else {
+                            getStyleClass().add("normal-row");
+                        }
                     }
                 } else {
-                    getStyleClass().remove("highlight-row");
+                    getStyleClass().add("normal-row");
                 }
             }
         });
@@ -217,4 +228,98 @@ public class ProgramTableController {
         this.currentDegree = degree;
         refreshTable();
     }
+    // Add these fields to your ProgramTableController class:
+
+    // Debug highlighting
+    private int debugCurrentLine = -1; // -1 means no debugging
+    private final PseudoClass DEBUG_CURRENT_LINE = PseudoClass.getPseudoClass("debug-current-line");
+
+    // Add this method to your ProgramTableController class:
+    /*public void setDebugCurrentLine(int lineNumber) {
+        this.debugCurrentLine = lineNumber - 1; // Convert from 1-based to 0-based
+        Platform.runLater(() -> {
+            programTable.refresh(); // Force row refresh to update highlighting
+
+            // Scroll to the current debug line and select it
+            if (debugCurrentLine >= 0 && debugCurrentLine < instructionList.size()) {
+                programTable.scrollTo(debugCurrentLine);
+                programTable.getSelectionModel().select(debugCurrentLine);
+                programTable.getFocusModel().focus(debugCurrentLine);
+            }
+        });
+    }*/
+
+    /*public void clearDebugHighlight() {
+        this.debugCurrentLine = -1;
+        Platform.runLater(() -> {
+            programTable.refresh();
+            programTable.getSelectionModel().clearSelection();
+        });
+    }*/
+
+    // Update your existing row factory in the initialize() method:
+    private void setupTableRowFactory() {
+        programTable.setRowFactory(tv -> new TableRow<InstructionDTO>() {
+            @Override
+            protected void updateItem(InstructionDTO item, boolean empty) {
+                super.updateItem(item, empty);
+
+                // Clear all custom style classes first
+                getStyleClass().removeAll("highlight-row", "debug-current-line", "normal-row");
+
+                if (!empty && item != null) {
+                    int rowIndex = getIndex();
+
+                    // Check if this is the current debug line (highest priority)
+                    if (debugCurrentLine >= 0 && rowIndex == debugCurrentLine) {
+                        getStyleClass().add("debug-current-line");
+                    }
+                    // Check for variable highlighting (lower priority)
+                    else {
+                        boolean match = highlightedVar != null &&
+                                ((item.getName() != null && item.getName().contains(highlightedVar)) ||
+                                        (item.getSelfLabel() != null && item.getSelfLabel().getLabel().contains(highlightedVar)));
+
+                        if (match) {
+                            getStyleClass().add("highlight-row");
+                        } else {
+                            getStyleClass().add("normal-row");
+                        }
+                    }
+                } else {
+                    getStyleClass().add("normal-row");
+                }
+            }
+        });
+    }
+    // Add these fields to your ProgramTableController class:
+    /*private int debugCurrentLine = -1; // -1 means no debugging
+    private final PseudoClass DEBUG_CURRENT_LINE = PseudoClass.getPseudoClass("debug-current-line");*/
+
+// Add these methods to your ProgramTableController class:
+
+    public void setDebugCurrentLine(int lineNumber) {
+        this.debugCurrentLine = lineNumber - 1; // Convert from 1-based to 0-based
+        Platform.runLater(() -> {
+            programTable.refresh(); // Force row refresh to update highlighting
+
+            // Scroll to the current debug line and select it
+            if (debugCurrentLine >= 0 && debugCurrentLine < instructionList.size()) {
+                programTable.scrollTo(debugCurrentLine);
+                programTable.getSelectionModel().select(debugCurrentLine);
+                programTable.getFocusModel().focus(debugCurrentLine);
+            }
+        });
+    }
+
+    public void clearDebugHighlight() {
+        this.debugCurrentLine = -1;
+        Platform.runLater(() -> {
+            programTable.refresh();
+            programTable.getSelectionModel().clearSelection();
+        });
+    }
+
+
+
 }
